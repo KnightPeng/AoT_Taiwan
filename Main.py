@@ -18,12 +18,13 @@ def console_format(message):
 
 
 def main():
-    clear_data()
+    extract_prefix = "AoT_Taiwan.complete"
+    extract_tarpath = "{0}.{1}".format(extract_prefix, datetime.datetime.now().strftime("%Y-%m-%d"))
+    clear_data(extract_tarpath)
     writer = HTMLWriter()
     urllib3.disable_warnings()
     temp_filename = "temp.tar"
-    target_url = "https://www.mcs.anl.gov/research/projects/waggle/downloads/datasets/Waggle_Others.complete.recent.tar"
-    extract_tarpath = "Waggle_Others.complete.{0}".format(datetime.datetime.now().strftime("%Y-%m-%d"))
+    target_url = "https://www.mcs.anl.gov/research/projects/waggle/downloads/datasets/AoT_Taiwan.complete.recent.tar"
 
     if not os.path.isdir(extract_tarpath):
         download_record(target_url, temp_filename)
@@ -35,6 +36,7 @@ def main():
     console_format("Processing...")
 
     node_list = ['0CC', '110', '0FD']
+    # node_list = ['0FD']
     df_nodes = pd.read_csv(extract_tarpath + "/nodes.csv")
     df_nodes = df_nodes[df_nodes['vsn'].isin(node_list)]
     df_nodes = df_nodes[['node_id', 'vsn']]
@@ -71,8 +73,8 @@ def main():
     flatten_param = list(dict.fromkeys(itertools.chain(*sensor_param.values())))
     df_data = pd.read_csv(extract_tarpath + "/data.csv.gz", compression='gzip')
     df_data = df_data[df_data['sensor'].isin(list(sensor_param.keys()))]
-    df_data = df_data[df_data['parameter'].isin(flatten_param)].reset_index()
-    df_data = df_data.drop(columns='index')
+    # df_data = df_data[df_data['parameter'].isin(flatten_param)].reset_index()
+    # df_data = df_data.drop(columns='index')
     drop_rows = list()
     for index, row in df_data.iterrows():
         if not row['parameter'] in sensor_param[row['sensor']]:
@@ -84,14 +86,7 @@ def main():
     df_data = df_data.groupby(['node_id', 'vsn', 'subsystem', 'sensor', 'parameter']).last().reset_index()
     df_data['value_raw'] = df_data['value_raw'].astype('float64')
     df_data['value_hrf'] = df_data['value_hrf'].astype('float64')
-    # ============================================================
-    df_mapping = pd.read_csv(StringIO(MappingTable.mapping))
-    df_data = pd.merge(df_mapping, df_data, on='sensor')
-    df_data = df_data.drop(columns='sensor')
-    df_data = df_data.rename(index=str, columns={"output": "sensor"})
 
-    df_data = df_data.sort_values(by=['vsn', 'sensor_index']).reset_index()
-    df_data = df_data.drop(columns=['index', 'sensor_index'])
     cols = df_data.columns.tolist()
     cols.insert(0, cols.pop(cols.index('vsn')))
     df_data = df_data.reindex(columns=cols)
@@ -113,16 +108,20 @@ def download_record(url, filename):
     console_format("Download Done!")
 
 
-def clear_data():
+def clear_data(extrace_path=""):
     file_list = glob.glob("*.tar")
     file_list.extend(glob.glob("Waggle*"))
     file_list.extend(glob.glob("*.xlsx"))
     file_list.extend(glob.glob("*.html"))
+    if os.path.isdir(extrace_path):
+        file_list.append(extrace_path)
     for filename in file_list:
         try:
             shutil.rmtree(filename)
         except NotADirectoryError:
             os.remove(filename)
+        # except FileNotFoundError:
+        #     continue
 
 
 def clear_temp():

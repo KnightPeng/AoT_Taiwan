@@ -1,0 +1,9 @@
+.idea
+venv/*
+*.tar
+AoT*
+*.html
+*.xlsx
+*.csv
+*.csv.gz
+__pycache__
